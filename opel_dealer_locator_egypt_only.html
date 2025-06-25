@@ -1,0 +1,106 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Opel Dealer Locator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map { height: 100vh; }
+    .info-box {
+        background: white;
+        padding: 10px;
+        font-family: sans-serif;
+        font-size: 14px;
+        border-radius: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+
+<script>
+var map = L.map('map').setView([30.0444, 31.2357], 6);
+
+// Add OpenStreetMap tiles
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// Opel dealers data
+var dealers = [
+  { name: "Autogroup - Shoubra", lat: 30.1072174, lng: 31.2578043, phone: "01000450580 - 0116424888 - 01111676282" },
+  { name: "Auto Group - October", lat: 29.9300501, lng: 30.9030259, phone: "01001515575 - 01029777722 - 01029666622" },
+  { name: "Geyushi Motors - Katameya", lat: 29.9837723, lng: 31.3573158, phone: "19927" },
+  { name: "Al-Habiba - Rehab", lat: 30.0563032, lng: 31.4909222, phone: "01000929158" },
+  { name: "El Deeb auto - Maadi", lat: 29.9797053, lng: 31.2751493, phone: "01118099994" },
+  { name: "El deeb auto - Hurghada", lat: 27.0821782, lng: 33.8180493, phone: "01118099994" },
+  { name: "yassin group - Sheraton", lat: 30.1398433, lng: 31.3986213, phone: "01229009777" },
+  { name: "Magar Group - Dokki", lat: 30.0351972, lng: 31.199847, phone: "01221709795 - 01018577279" }
+];
+
+// Add markers
+dealers.forEach(d => {
+    let phoneLinks = d.phone.split(" - ").map(p => `<a href='tel:${p.trim()}'>${p.trim()}</a>`).join("<br>");
+    L.marker([d.lat, d.lng])
+      .addTo(map)
+      .bindPopup(`<b>${d.name}</b><br>📞<br>${phoneLinks}`);
+});
+
+// Add geocoder with Egypt restriction
+var egyptBounds = L.latLngBounds(
+    L.latLng(22.0, 25.0),  // SW
+    L.latLng(31.7, 35.0)   // NE
+);
+
+L.Control.geocoder({
+    defaultMarkGeocode: false,
+    geocoder: L.Control.Geocoder.nominatim({
+        geocodingQueryParams: {
+            countrycodes: 'eg'
+        },
+        bounds: egyptBounds
+    })
+})
+.on('markgeocode', function(e) {
+    let loc = e.geocode.center;
+
+    if (!egyptBounds.contains(loc)) {
+        alert("📍 Please search for a location within Egypt.");
+        return;
+    }
+
+    L.marker(loc).addTo(map).bindPopup("📍 Customer Location").openPopup();
+    map.setView(loc, 11);
+
+    // Calculate distances
+    let distances = dealers.map(d => {
+        let dx = d.lat - loc.lat;
+        let dy = d.lng - loc.lng;
+        return {
+            name: d.name,
+            phone: d.phone,
+            distance: Math.sqrt(dx*dx + dy*dy) * 111
+        };
+    }).sort((a,b) => a.distance - b.distance);
+
+    let html = "<div class='info-box'><b>Nearest Opel Dealers:</b><ol>";
+    distances.forEach(d => {
+        html += `<li><b>${d.name}</b> – ${d.distance.toFixed(1)} km<br><small>${d.phone}</small></li>`;
+    });
+    html += "</ol></div>";
+
+    L.popup().setLatLng(loc).setContent(html).openOn(map);
+})
+.addTo(map);
+</script>
+</body>
+</html>
